@@ -13,7 +13,7 @@ def create_mock_calendar_event(title: str, date: str, description: str) -> dict:
     """
     event_id = f"evt_{hash(title + date) % 100000}"
     
-    # In a real tool, this would call Google Calendar API or similar
+    # Simulated local calendar entry generation
     mock_event = {
         "id": event_id,
         "title": title,

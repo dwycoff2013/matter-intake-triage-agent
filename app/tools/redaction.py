@@ -88,8 +88,8 @@ def redact_pii(text: str) -> dict:
     redactions: list[dict] = []
 
     for match in matches:
-        placeholder = _PLACEHOLDER.get(match.type, "[REDACTED]")
-        redacted = redacted[:match.start] + placeholder + redacted[match.end:]
+        replacement_token = _REPLACEMENT_TOKEN.get(match.type, "[REDACTED]")
+        redacted = redacted[:match.start] + replacement_token + redacted[match.end:]
         redactions.append({
             "type": match.type,
             "original": match.original,

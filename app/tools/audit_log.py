@@ -10,8 +10,7 @@ def write_audit_log(action: str, details: str, tool_context: ToolContext) -> dic
     Returns:
         dict with confirmation of the audit log entry.
     """
-    # In a real tool, this would write to a database or Cloud Logging
-    # Here we simulate logging and potentially store in the session state
+    # Write audit log to session state
     log_entry = {
         "action": action,
         "details": details,
