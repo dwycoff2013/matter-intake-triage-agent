@@ -49,15 +49,15 @@ User / Demo UI
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # add your GOOGLE_API_KEY
-python -m app.agent     # CLI demo
+python -m app.agent     # no-credential CLI smoke demo using synthetic sample data
 # or
-adk web app             # ADK web UI
+adk web app             # full ADK web UI; requires google-adk and local credentials
 ```
 
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+python -m pytest tests -q
 ```
 
 ## License

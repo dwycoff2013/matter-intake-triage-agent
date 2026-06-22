@@ -1,5 +1,9 @@
 import pytest
+
+pytest.importorskip("google.adk", reason="google-adk is required for ADK agent refusal tests")
+
 from app.agents.security_reviewer import security_reviewer
+
 
 def test_security_reviewer_refusal_logic():
     # Verify the agent is instructed to refuse legal advice requests

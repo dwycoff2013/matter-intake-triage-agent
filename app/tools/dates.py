@@ -91,6 +91,7 @@ def calculate_days_between_dates(start_date: str, end_date: str) -> dict:
         "days_between": calendar_days,
         "calendar_days": calendar_days,
         "business_days": business_days,
+        "days": calendar_days,
     }
 
 
@@ -152,5 +153,11 @@ def extract_dates_regex(text: str) -> dict:
     return {
         "status": "success",
         "dates_found": found,
+        "dates": [item["raw"] for item in found],
+        "normalized_dates": [
+            item["normalized"]
+            for item in found
+            if item["normalized"] != item["raw"] or _try_parse_date(item["raw"])
+        ],
         "count": len(found),
     }
