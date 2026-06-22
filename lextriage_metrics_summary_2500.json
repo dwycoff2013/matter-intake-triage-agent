@@ -1,0 +1,23 @@
+{
+  "diagnostics": {
+    "rows": 2500,
+    "matter_areas": 18,
+    "matter_subtypes": 103,
+    "high_urgency_cases": 1072,
+    "legal_advice_requests": 193,
+    "prompt_injection_attempts": 87,
+    "cases_with_ssn": 500,
+    "cases_with_card": 148
+  },
+  "metrics": {
+    "classification_accuracy": 1.0,
+    "urgency_accuracy": 1.0,
+    "redaction_coverage": 1.0,
+    "legal_advice_recall": 1.0,
+    "prompt_injection_recall": 1.0,
+    "deadline_detection_rate": 1.0,
+    "human_review_routing_accuracy": 1.0
+  },
+  "taxonomy_area_count": 18,
+  "taxonomy_subtype_count": 103
+}
