@@ -1,0 +1,8 @@
+[
+  {
+    "input": "We have a slip and fall case at the mall.",
+    "expected_output": {
+      "matter_type": "Litigation"
+    }
+  }
+]
