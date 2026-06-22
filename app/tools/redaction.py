@@ -41,10 +41,10 @@ _PII_PATTERNS: list[tuple[str, re.Pattern]] = [
 
 # Placeholder template per PII type
 _PLACEHOLDER = {
-    "SSN": "[REDACTED-SSN]",
-    "CREDIT_CARD": "[REDACTED-CC]",
-    "EMAIL": "[REDACTED-EMAIL]",
-    "PHONE": "[REDACTED-PHONE]",
+    "SSN": "[SSN REDACTED]",
+    "CREDIT_CARD": "[PAYMENT REDACTED]",
+    "EMAIL": "[EMAIL REDACTED]",
+    "PHONE": "[PHONE REDACTED]",
 }
 
 
@@ -56,7 +56,7 @@ def redact_pii(text: str) -> dict:
 
     Scans for SSN, phone numbers, email addresses, and credit card numbers.
     Each detected item is replaced with a typed placeholder
-    (e.g. ``[REDACTED-SSN]``).
+    (e.g. ``[SSN REDACTED]``).
 
     Args:
         text: The text to scan and redact.
@@ -88,7 +88,7 @@ def redact_pii(text: str) -> dict:
     redactions: list[dict] = []
 
     for match in matches:
-        replacement_token = _REPLACEMENT_TOKEN.get(match.type, "[REDACTED]")
+        replacement_token = _PLACEHOLDER.get(match.type, "[REDACTED]")
         redacted = redacted[:match.start] + replacement_token + redacted[match.end:]
         redactions.append({
             "type": match.type,
