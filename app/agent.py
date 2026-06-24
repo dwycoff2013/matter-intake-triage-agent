@@ -30,7 +30,7 @@ def main() -> None:
     print("\n".join(preview))
 
     print("\nFull ADK web UI usage still requires google-adk and configured credentials.")
-    print("Run `adk web app` after setting GOOGLE_API_KEY in an uncommitted .env file.")
+    print("Run `adk web agents` or `adk run agents/lextriage` after setting GOOGLE_API_KEY in an uncommitted .env file.")
 
 
 if __name__ == "__main__":
