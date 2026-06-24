@@ -19,3 +19,12 @@ def test_local_eval_includes_core_metrics():
     assert "legal_advice_detection_pass_rate" in metrics
     assert "prompt_injection_detection_pass_rate" in metrics
     assert "human_review_routing_pass_rate" in metrics
+
+
+def test_local_eval_requires_all_expected_pii_redactions():
+    df = generate_synthetic_intake_cases(n_cases=1)
+    results, _ = evaluate_synthetic_cases(df)
+    row = results.iloc[0]
+    assert row["expected_pii_count"] == 4
+    assert row["redaction_count"] >= 4
+    assert bool(row["redaction_pass"])

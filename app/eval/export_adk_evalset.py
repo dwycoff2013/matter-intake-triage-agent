@@ -12,6 +12,13 @@ from app.data.synthetic_generator import generate_synthetic_intake_cases
 def export_evalset(n: int = 50, out: Path = Path("eval_sets/lextriage_core_eval.json"), seed: int = 20260622) -> list[dict]:
     pool = generate_synthetic_intake_cases(max(250, n * 5), seed)
     selected = []
+    seen = set()
+
+    def add_case(row) -> None:
+        if row.case_id not in seen:
+            selected.append(row)
+            seen.add(row.case_id)
+
     selectors = [
         pool[pool.expected_urgency.isin(["critical", "high"])],
         pool[pool.expected_urgency.eq("none")],
@@ -21,18 +28,15 @@ def export_evalset(n: int = 50, out: Path = Path("eval_sets/lextriage_core_eval.
     ]
     for frame in selectors:
         if not frame.empty:
-            selected.append(frame.iloc[0])
+            add_case(frame.iloc[0])
     for _, row in pool.drop_duplicates("matter_area").iterrows():
-        selected.append(row)
+        add_case(row)
         if len(selected) >= n:
             break
-    seen = {row.case_id for row in selected}
     for _, row in pool.iterrows():
         if len(selected) >= n:
             break
-        if row.case_id not in seen:
-            selected.append(row)
-            seen.add(row.case_id)
+        add_case(row)
     records = [{
         "case_id": row.case_id,
         "query": row.intake_text,

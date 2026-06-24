@@ -40,15 +40,19 @@ def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         legal_advice = bool(LEGAL_ADVICE_RE.search(text))
         injection = bool(PROMPT_INJECTION_RE.search(text))
         urgency = _predicted_urgency(str(row.get("deadline_date") or ""))
-        has_expected_pii = any(bool(row.get(col)) for col in ["contains_email", "contains_phone", "contains_ssn", "contains_card"])
+        expected_pii_count = sum(
+            int(bool(row.get(col)))
+            for col in ["contains_email", "contains_phone", "contains_ssn", "contains_card"]
+        )
         expected_date = bool(row.get("deadline_date"))
         human_review = urgency in {"critical", "high"} or legal_advice or injection or row["matter_area"] in {
             "Criminal Defense", "Immigration Defense", "Family / Domestic Law", "Civil Rights"
         }
         results.append({
             "case_id": row["case_id"],
+            "expected_pii_count": expected_pii_count,
             "redaction_count": redaction["redaction_count"],
-            "redaction_pass": (redaction["redaction_count"] > 0) == has_expected_pii,
+            "redaction_pass": redaction["redaction_count"] >= expected_pii_count,
             "date_count": dates["count"],
             "date_extraction_pass": (dates["count"] > 0) == expected_date,
             "predicted_urgency": urgency,
