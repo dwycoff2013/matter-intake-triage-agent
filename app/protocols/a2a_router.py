@@ -12,6 +12,14 @@ _ROUTE = [
     ("packet_writer", "create_intake_packet", "application/vnd.lextriage.packet+json"),
 ]
 
+_CONTEXT_POLICIES = {
+    "security_reviewer": "raw_intake_allowed",
+    "intake_classifier": "structured_metadata_only",
+    "document_extractor": "redacted_or_minimized",
+    "deadline_triage": "structured_metadata_only",
+    "packet_writer": "structured_metadata_only",
+}
+
 
 def _case_id(case: dict) -> str:
     return str(case.get("case_id") or case.get("id") or "CASE-UNKNOWN")
@@ -30,6 +38,57 @@ def _human_review_required(case: dict) -> bool:
     )
 
 
+def _safety_flags_summary(case: dict) -> dict:
+    return {
+        "asks_legal_advice": bool(case.get("asks_legal_advice")),
+        "prompt_injection": bool(case.get("prompt_injection")),
+        "contains_pii": bool(
+            case.get("contains_email")
+            or case.get("contains_phone")
+            or case.get("contains_ssn")
+            or case.get("contains_card")
+        ),
+        "needs_human_review": _human_review_required(case),
+    }
+
+
+def _payload_for_agent(case: dict, to_agent: str) -> dict:
+    """Return role-specific minimized context for a routed A2A task."""
+
+    case_id = _case_id(case)
+    base = {
+        "case_id": case_id,
+        "matter_area": case.get("matter_area"),
+        "matter_subtype": case.get("matter_subtype"),
+    }
+    if to_agent == "security_reviewer":
+        return {**base, "intake_text": case.get("intake_text", "")}
+    if to_agent == "intake_classifier":
+        return {
+            **base,
+            "expected_urgency": case.get("expected_urgency") or case.get("urgency"),
+            "deadline_date": case.get("deadline_date") or None,
+            "safety_flags": _safety_flags_summary(case),
+        }
+    if to_agent == "document_extractor":
+        return {**base, "deadline_date": case.get("deadline_date") or None}
+    if to_agent == "deadline_triage":
+        return {
+            "case_id": case_id,
+            "deadline_date": case.get("deadline_date") or None,
+            "expected_urgency": case.get("expected_urgency") or case.get("urgency"),
+        }
+    if to_agent == "packet_writer":
+        return {
+            **base,
+            "expected_urgency": case.get("expected_urgency") or case.get("urgency"),
+            "deadline_date": case.get("deadline_date") or None,
+            "needs_human_review": _human_review_required(case),
+            "safety_flags": _safety_flags_summary(case),
+        }
+    return {"case_id": case_id}
+
+
 def run_a2a_trace_for_case(case: dict) -> dict:
     """Run a deterministic local A2A-style routing trace for a case.
 
@@ -41,6 +100,7 @@ def run_a2a_trace_for_case(case: dict) -> dict:
     trace: list[dict] = []
     for idx, (to_agent, skill_id, output_mode) in enumerate(_ROUTE, start=1):
         task_id = f"{case_id}-task-{idx:02d}"
+        context_policy = _CONTEXT_POLICIES[to_agent]
         task = A2ATaskEnvelope(
             id=f"{task_id}-request",
             from_agent="coordinator",
@@ -48,7 +108,7 @@ def run_a2a_trace_for_case(case: dict) -> dict:
             task_id=task_id,
             case_id=case_id,
             skill_id=skill_id,
-            payload={"case_id": case_id, "case": case},
+            payload=_payload_for_agent(case, to_agent),
             input_mode="application/json",
             output_mode=output_mode,
         )
@@ -66,6 +126,7 @@ def run_a2a_trace_for_case(case: dict) -> dict:
             "from_agent": task.from_agent,
             "to_agent": task.to_agent,
             "skill_id": task.skill_id,
+            "context_policy": context_policy,
             "input_mode": task.input_mode,
             "output_mode": task.output_mode,
             "status": response.status,

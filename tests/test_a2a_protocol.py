@@ -26,3 +26,24 @@ def test_a2a_trace_security_first_packet_writer_and_completed():
     assert trace_result["trace"][0]["to_agent"] == "security_reviewer"
     assert any(item["to_agent"] == "packet_writer" for item in trace_result["trace"])
     assert trace_result["final_status"] == "completed"
+
+
+def test_a2a_trace_uses_minimized_role_specific_context():
+    case = generate_synthetic_intake_cases(n_cases=1).iloc[0].to_dict()
+    trace = run_a2a_trace_for_case(case)["trace"]
+    by_agent = {item["to_agent"]: item for item in trace}
+
+    security_payload = by_agent["security_reviewer"]["task_envelope"]["payload"]
+    assert security_payload.get("intake_text") == case["intake_text"]
+    assert by_agent["security_reviewer"]["context_policy"] == "raw_intake_allowed"
+
+    for agent in ("intake_classifier", "deadline_triage", "packet_writer"):
+        payload = by_agent[agent]["task_envelope"]["payload"]
+        assert "intake_text" not in payload
+        assert "case" not in payload
+
+    assert trace[0]["context_policy"] == "raw_intake_allowed"
+    assert all(
+        item["context_policy"] in {"redacted_or_minimized", "structured_metadata_only"}
+        for item in trace[1:]
+    )
