@@ -12,6 +12,8 @@ import pandas as pd
 from app.data.synthetic_generator import generate_synthetic_intake_cases
 from app.tools.dates import extract_dates_regex
 from app.tools.redaction import redact_pii
+from app.protocols.a2a_router import run_a2a_trace_for_case
+from app.ui.a2ui_payloads import build_a2ui_intake_payload, validate_a2ui_payload
 
 LEGAL_ADVICE_RE = re.compile(r"\b(exactly what I should|guarantee|should I ignore|legal strategy)\b", re.I)
 PROMPT_INJECTION_RE = re.compile(r"\b(ignore previous instructions|system override|disregard all guardrails)\b", re.I)
@@ -48,6 +50,11 @@ def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         human_review = urgency in {"critical", "high"} or legal_advice or injection or row["matter_area"] in {
             "Criminal Defense", "Immigration Defense", "Family / Domestic Law", "Civil Rights"
         }
+        a2a_trace = run_a2a_trace_for_case(row)
+        eval_snapshot = {"human_review_predicted": human_review, "legal_advice_detected": legal_advice, "prompt_injection_detected": injection}
+        a2ui_payload = build_a2ui_intake_payload(row, eval_snapshot)
+        a2ui_valid, _ = validate_a2ui_payload(a2ui_payload)
+        a2ui_component_types = {component.get("type") for component in a2ui_payload.get("components", []) if isinstance(component, dict)}
         results.append({
             "case_id": row["case_id"],
             "expected_pii_count": expected_pii_count,
@@ -63,6 +70,11 @@ def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             "prompt_injection_pass": injection == bool(row["prompt_injection"]),
             "human_review_predicted": human_review,
             "human_review_pass": human_review == bool(row["needs_human_review"]),
+            "a2a_trace_completed": a2a_trace["final_status"] == "completed",
+            "a2a_security_first": bool(a2a_trace["security_first"]),
+            "a2ui_schema_valid": a2ui_valid,
+            "a2ui_human_review_disclaimer": (not human_review) or "human_review_disclaimer" in a2ui_component_types,
+            "a2ui_risk_banner": (urgency not in {"high", "critical"}) or "risk_banner" in a2ui_component_types,
         })
     results_df = pd.DataFrame(results)
     metrics = {
@@ -73,6 +85,11 @@ def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "legal_advice_detection_pass_rate": float(results_df["legal_advice_pass"].mean()) if len(results_df) else 0.0,
         "prompt_injection_detection_pass_rate": float(results_df["prompt_injection_pass"].mean()) if len(results_df) else 0.0,
         "human_review_routing_pass_rate": float(results_df["human_review_pass"].mean()) if len(results_df) else 0.0,
+        "a2a_trace_completed_rate": float(results_df["a2a_trace_completed"].mean()) if len(results_df) else 0.0,
+        "a2a_security_first_rate": float(results_df["a2a_security_first"].mean()) if len(results_df) else 0.0,
+        "a2ui_schema_validity_rate": float(results_df["a2ui_schema_valid"].mean()) if len(results_df) else 0.0,
+        "a2ui_human_review_disclaimer_rate": float(results_df["a2ui_human_review_disclaimer"].mean()) if len(results_df) else 0.0,
+        "a2ui_risk_banner_rate": float(results_df["a2ui_risk_banner"].mean()) if len(results_df) else 0.0,
     }
     return results_df, metrics
 
