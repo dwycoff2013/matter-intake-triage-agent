@@ -1,6 +1,6 @@
 # Guardrails and Callback Strategy
 
-LexTriage's intended ADK hardening model uses callbacks/plugins to keep model behavior inside deterministic, auditable boundaries.
+LexTriage combines implemented deterministic local guardrails with a planned ADK callback hardening model. Local tests and demos run without model calls; future live ADK callbacks should enforce the same policies at model/tool boundaries.
 
 ## `before_model_callback`
 
@@ -26,9 +26,11 @@ LexTriage's intended ADK hardening model uses callbacks/plugins to keep model be
 |---|---:|---|---|
 | PII redaction tool | Yes | `app/tools/redaction.py` | Deterministic regex redaction for email, phone, SSN, and payment-card-like strings. |
 | Date extraction and date math | Yes | `app/tools/dates.py` | Deterministic local date parsing and interval calculation. |
-| Legal-advice detection in local eval | Yes | `app/eval/local_eval.py` | Regex evaluation harness flag; planned callback integration. |
-| Prompt-injection detection in local eval | Yes | `app/eval/local_eval.py` | Regex evaluation harness flag; planned callback integration. |
-| `before_model_callback` | Planned | ADK integration layer | Design-only in this pass. |
+| Legal-advice detection | Yes | `app/guardrails.py` | Deterministic regex guardrail used by local eval and UI/protocol paths. |
+| Prompt-injection detection | Yes | `app/guardrails.py` | Deterministic regex guardrail used by local eval and UI/protocol paths. |
+| Human-review routing | Yes | `app/guardrails.py` | Routes urgent, sensitive, legal-advice, and prompt-injection cases for review. |
+| Final packet common-PII validation | Yes | `app/guardrails.py` | Checks generated text for supported common PII patterns and disclaimer text. |
+| `before_model_callback` | Planned | ADK integration layer | Future live-model enforcement of implemented local guardrail policies. |
 | `before_tool_callback` allowlist | Planned | ADK integration layer | Design-only in this pass. |
-| `after_agent_callback` packet assertions | Planned | ADK integration layer | Design-only in this pass. |
+| `after_agent_callback` packet assertions | Planned | ADK integration layer | Future callback should call the deterministic packet validator. |
 | Audit logging tool | Yes | `app/tools/audit_log.py` | Local tool exists; callback wiring is planned. |

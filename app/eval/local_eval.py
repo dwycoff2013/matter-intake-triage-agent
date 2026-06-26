@@ -4,32 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 
 import pandas as pd
 
-from app.data.synthetic_generator import generate_synthetic_intake_cases
+from app.data.synthetic_generator import BASE_DATE, generate_synthetic_intake_cases
 from app.tools.dates import extract_dates_regex
-from app.tools.redaction import redact_pii
+from app.guardrails import assess_intake, predict_urgency
 from app.protocols.a2a_router import run_a2a_trace_for_case
 from app.ui.a2ui_payloads import build_a2ui_intake_payload, validate_a2ui_payload
 
-LEGAL_ADVICE_RE = re.compile(r"\b(exactly what I should|guarantee|should I ignore|legal strategy)\b", re.I)
-PROMPT_INJECTION_RE = re.compile(r"\b(ignore previous instructions|system override|disregard all guardrails)\b", re.I)
-
-
-def _predicted_urgency(deadline_date: str) -> str:
-    if not deadline_date:
-        return "none"
-    days = (pd.Timestamp(deadline_date).date() - pd.Timestamp("2026-06-22").date()).days
-    if days <= 3:
-        return "critical"
-    if days <= 10:
-        return "high"
-    if days <= 30:
-        return "medium"
-    return "routine"
+EVAL_BASE_DATE = BASE_DATE
 
 
 def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
@@ -37,29 +22,42 @@ def evaluate_synthetic_cases(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     results: list[dict] = []
     for row in df.to_dict("records"):
         text = row["intake_text"]
-        redaction = redact_pii(text)
         dates = extract_dates_regex(text)
-        legal_advice = bool(LEGAL_ADVICE_RE.search(text))
-        injection = bool(PROMPT_INJECTION_RE.search(text))
-        urgency = _predicted_urgency(str(row.get("deadline_date") or ""))
+        urgency = predict_urgency(
+            str(row.get("deadline_date") or ""), today=EVAL_BASE_DATE
+        )
+        guardrails = assess_intake(
+            text,
+            urgency=urgency,
+            matter_area=str(row.get("matter_area") or ""),
+            needs_human_review=bool(row.get("needs_human_review")),
+        )
+        legal_advice = guardrails.legal_advice_requested
+        injection = guardrails.prompt_injection_detected
         expected_pii_count = sum(
             int(bool(row.get(col)))
             for col in ["contains_email", "contains_phone", "contains_ssn", "contains_card"]
         )
         expected_date = bool(row.get("deadline_date"))
-        human_review = urgency in {"critical", "high"} or legal_advice or injection or row["matter_area"] in {
-            "Criminal Defense", "Immigration Defense", "Family / Domestic Law", "Civil Rights"
-        }
+        human_review = guardrails.human_review_required
         a2a_trace = run_a2a_trace_for_case(row)
-        eval_snapshot = {"human_review_predicted": human_review, "legal_advice_detected": legal_advice, "prompt_injection_detected": injection}
+        eval_snapshot = {
+            "human_review_predicted": human_review,
+            "legal_advice_detected": legal_advice,
+            "prompt_injection_detected": injection,
+        }
         a2ui_payload = build_a2ui_intake_payload(row, eval_snapshot)
         a2ui_valid, _ = validate_a2ui_payload(a2ui_payload)
-        a2ui_component_types = {component.get("type") for component in a2ui_payload.get("components", []) if isinstance(component, dict)}
+        a2ui_component_types = {
+            component.get("type")
+            for component in a2ui_payload.get("components", [])
+            if isinstance(component, dict)
+        }
         results.append({
             "case_id": row["case_id"],
             "expected_pii_count": expected_pii_count,
-            "redaction_count": redaction["redaction_count"],
-            "redaction_pass": redaction["redaction_count"] >= expected_pii_count,
+            "redaction_count": guardrails.redaction_count,
+            "redaction_pass": guardrails.redaction_count >= expected_pii_count,
             "date_count": dates["count"],
             "date_extraction_pass": (dates["count"] > 0) == expected_date,
             "predicted_urgency": urgency,
@@ -105,7 +103,9 @@ def main() -> None:
     results_df, metrics = evaluate_synthetic_cases(df)
     df.to_csv(args.out_dir / f"lextriage_synthetic_intake_{args.n}.csv", index=False)
     results_df.to_csv(args.out_dir / f"lextriage_eval_results_{args.n}.csv", index=False)
-    (args.out_dir / f"lextriage_metrics_summary_{args.n}.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    (args.out_dir / f"lextriage_metrics_summary_{args.n}.json").write_text(
+        json.dumps(metrics, indent=2), encoding="utf-8"
+    )
     print(json.dumps(metrics, indent=2))
 
 

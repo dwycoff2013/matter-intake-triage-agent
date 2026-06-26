@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-import re
+from app.guardrails import (
+    COMMON_PII_PATTERNS,
+    RISK_URGENCIES,
+    SENSITIVE_MATTER_AREAS,
+    assess_intake,
+)
 
-PII_SUMMARY_PATTERNS = [
-    re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
-    re.compile(r"(?:\+?1[-.\s]?)?(?:\(\d{3}\)|\d{3})[-.\s]?\d{3}[-.\s]?\d{4}\b"),
-    re.compile(r"\b\d{3}[-\s]\d{2}[-\s]\d{4}\b"),
-]
-
-SENSITIVE_AREAS = {
-    "Criminal Defense",
-    "Immigration Defense",
-    "Family / Domestic Law",
-    "Civil Rights",
-}
-RISK_URGENCIES = {"high", "critical"}
+PII_SUMMARY_PATTERNS = COMMON_PII_PATTERNS
+SENSITIVE_AREAS = SENSITIVE_MATTER_AREAS
 
 
 def _case_id(case: dict) -> str:
@@ -46,10 +40,7 @@ def _human_review_required(case: dict, eval_result: dict | None = None) -> bool:
 
 
 def _privacy_first_summary(text: str, limit: int = 280) -> str:
-    summary = str(text or "")[:limit]
-    for pattern in PII_SUMMARY_PATTERNS:
-        summary = pattern.sub("[REDACTED]", summary)
-    return summary
+    return assess_intake(str(text or "")[:limit]).redacted_text
 
 
 def build_a2ui_intake_payload(case: dict, eval_result: dict | None = None) -> dict:

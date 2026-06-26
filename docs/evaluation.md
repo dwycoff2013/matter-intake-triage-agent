@@ -19,4 +19,4 @@ We use the ADK Evaluation framework to measure:
 | deadline uncertainty | Whether calculated deadlines are treated as triage aids requiring verification. | Statute-of-limitations review is flagged for attorney confirmation. |
 | packet completeness | Whether the final packet includes summary, extracted entities, deadline notes, safety flags, and missing-information checklist. | Sample packet contains all required sections. |
 
-Golden and expected-output fixtures for deterministic sample intake behavior live in `tests/fixtures/`.
+Golden and expected-output fixtures for deterministic sample intake behavior live in `tests/fixtures/`. Synthetic urgency metrics are calculated relative to the fixed fixture date `2026-06-22` (`app.data.synthetic_generator.BASE_DATE`) so results remain reproducible regardless of the current calendar date. Committed 2,500-case demo artifacts live in `outputs/` and can be regenerated with `python -m app.eval.local_eval --n 2500 --out-dir outputs/`.
