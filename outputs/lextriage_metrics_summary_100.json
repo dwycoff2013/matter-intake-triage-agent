@@ -1,0 +1,9 @@
+{
+  "case_count": 100,
+  "redaction_pass_rate": 1.0,
+  "date_extraction_pass_rate": 1.0,
+  "urgency_pass_rate": 1.0,
+  "legal_advice_detection_pass_rate": 1.0,
+  "prompt_injection_detection_pass_rate": 1.0,
+  "human_review_routing_pass_rate": 1.0
+}
