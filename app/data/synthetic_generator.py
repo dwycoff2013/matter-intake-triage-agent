@@ -136,7 +136,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate deterministic synthetic LexTriage intake cases.")
     parser.add_argument("--n", type=int, default=2500)
     parser.add_argument("--seed", type=int, default=20260622)
-    parser.add_argument("--out", type=Path, default=Path("data/lextriage_synthetic_intake_2500.csv"))
+    parser.add_argument("--out", type=Path, default=Path("outputs/lextriage_synthetic_intake_2500.csv"))
     args = parser.parse_args()
     df = generate_synthetic_intake_cases(args.n, args.seed)
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.protocols.a2a import A2AResponseEnvelope, A2ATaskEnvelope
-from app.tools.redaction import redact_pii
+from app.guardrails import assess_intake
 
 _ROUTE = [
     ("security_reviewer", "redact_pii", "application/json"),
@@ -42,21 +42,17 @@ def _minimized_text(case: dict) -> str:
 
     The document extractor needs enough narrative context to identify dates,
     document types, and entities, but it must not receive the full raw case
-    object. Prefer the redaction tool and fall back to deterministic truncation
-    if the tool is unavailable or returns an unexpected shape.
+    object. Use the shared deterministic guardrail layer for redaction and
+    then truncate to a bounded local-demo payload.
     """
 
     source_text = str(case.get("intake_text") or case.get("summary") or "")
     if not source_text:
         return ""
-    try:
-        redaction_result = redact_pii(source_text)
-        redacted_text = redaction_result.get("redacted_text")
-        if isinstance(redacted_text, str):
-            return redacted_text[:2000]
-    except Exception:
-        pass
-    return source_text[:1000]
+    guardrails = assess_intake(
+        source_text, matter_area=str(case.get("matter_area") or "")
+    )
+    return guardrails.redacted_text[:2000]
 
 
 def _task_payload_for_agent(

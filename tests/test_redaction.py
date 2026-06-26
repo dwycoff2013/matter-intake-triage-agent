@@ -11,3 +11,17 @@ def test_redact_pii():
     assert "[PHONE REDACTED]" in result["redacted_text"]
     assert "123-45-6789" not in result["redacted_text"]
     assert "[SSN REDACTED]" in result["redacted_text"]
+
+
+def test_redaction_covers_supported_payment_card_pattern():
+    result = redact_pii("Card 4111-1111-1111-1111 belongs in a synthetic fixture.")
+    assert "4111-1111-1111-1111" not in result["redacted_text"]
+    assert "[PAYMENT REDACTED]" in result["redacted_text"]
+
+
+def test_redaction_does_not_claim_to_remove_names_or_street_addresses():
+    text = "Jane Example lives at 123 Main Street. Email jane@example.com."
+    result = redact_pii(text)
+    assert "Jane Example" in result["redacted_text"]
+    assert "123 Main Street" in result["redacted_text"]
+    assert "jane@example.com" not in result["redacted_text"]
